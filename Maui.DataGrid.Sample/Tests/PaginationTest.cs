@@ -1,13 +1,14 @@
 namespace Maui.DataGrid.Sample.Tests;
 
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using Maui.DataGrid.Sample.Models;
 using Maui.DataGrid.Sample.Tests.TestUtils;
 using Xunit;
 
 public class PaginationTest
 {
-    private readonly List<Team> _teams = Utils.DummyDataProvider.GetTeams();
+    private readonly ObservableCollection<Team> _teams = Utils.DummyDataProvider.GetTeams();
 
     [Fact]
     public void PageCountDoesNotChangesWithBinding()

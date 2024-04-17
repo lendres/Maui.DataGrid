@@ -3,14 +3,15 @@ namespace Maui.DataGrid.Sample.Utils;
 using System.Reflection;
 using Maui.DataGrid.Sample.Models;
 using System.Text.Json;
+using System.Collections.ObjectModel;
 
 internal static class DummyDataProvider
 {
     private static readonly Random RandomNumber = new();
 
-    private static List<Team>? _realTeams;
+    private static ObservableCollection<Team>? _realTeams;
 
-    public static List<Team> GetTeams(int numberOfCopies = 1)
+    public static ObservableCollection<Team> GetTeams(int numberOfCopies = 1)
     {
         if (_realTeams == null)
         {
@@ -22,7 +23,7 @@ internal static class DummyDataProvider
             using var reader = new StreamReader(stream);
             var json = reader.ReadToEnd();
 
-            _realTeams = JsonSerializer.Deserialize<List<Team>>(json)
+            _realTeams = JsonSerializer.Deserialize<ObservableCollection<Team>>(json)
                 ?? throw new InvalidOperationException("Could not deserialize teams.json");
         }
 
@@ -31,7 +32,7 @@ internal static class DummyDataProvider
             return _realTeams;
         }
 
-        var teams = new List<Team>(_realTeams);
+        var teams = new ObservableCollection<Team>(_realTeams);
 
         for (var i = 0; i < numberOfCopies; i++)
         {

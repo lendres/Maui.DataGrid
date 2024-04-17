@@ -25,6 +25,7 @@ public class MainViewModel : ViewModelBase
         Commands.Add("Edit", new Command<Team>(CmdEdit));
         Commands.Add("Refresh", new Command(CmdRefresh));
         Commands.Add("Tapped", new Command(CmdTapped));
+        Commands.Add("Delete", new Command(CmdDelete));
 
         var picker = new Picker();
     }
@@ -39,9 +40,9 @@ public class MainViewModel : ViewModelBase
         set => SetValue(value);
     }
 
-    public List<Team>? Teams
+    public ObservableCollection<Team>? Teams
     {
-        get => GetValue<List<Team>>();
+        get => GetValue<ObservableCollection<Team>>();
         set => SetValue(value);
     }
 
@@ -145,6 +146,14 @@ public class MainViewModel : ViewModelBase
         if (item is Team team)
         {
             Debug.WriteLine($"Item Tapped: {team.Name}");
+        }
+    }
+
+    private void CmdDelete()
+    {
+        if (Teams?.Count > 0)
+        {
+            Teams?.RemoveAt(0);
         }
     }
 }

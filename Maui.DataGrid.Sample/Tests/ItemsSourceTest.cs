@@ -8,7 +8,7 @@ using Xunit;
 
 public class ItemsSourceTest
 {
-    private readonly List<Team> _teams = Utils.DummyDataProvider.GetTeams();
+    private readonly ObservableCollection<Team> _teams = Utils.DummyDataProvider.GetTeams();
     private readonly Team _dummyTeam = new()
     {
         Name = "Not Exists",

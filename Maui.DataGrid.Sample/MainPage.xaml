@@ -12,7 +12,10 @@
     <Grid RowDefinitions="Auto,*" BackgroundColor="White">
 
         <Grid BackgroundColor="Black">
-            <Button Text="Settings" WidthRequest="100" Clicked="OnSettingsClicked" />
+            <HorizontalStackLayout Spacing="20" HorizontalOptions="Center">
+                <Button Text="Settings" WidthRequest="100" Clicked="OnSettingsClicked" />
+                <Button Text="Delete" WidthRequest="100" Command="{Binding Commands[Delete]}" />
+            </HorizontalStackLayout>
         </Grid>
 
         <dg:DataGrid Grid.Row="1" ItemsSource="{Binding Teams}" SelectionMode="{Binding SelectionMode}"
