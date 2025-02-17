@@ -5,10 +5,11 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Windows.Input;
 
-public abstract class ViewModelBase : INotifyPropertyChanged
+internal abstract class ViewModelBase : INotifyPropertyChanged
 {
-    public event PropertyChangedEventHandler? PropertyChanged;
     private readonly Dictionary<string, object?> _properties = [];
+
+    public event PropertyChangedEventHandler? PropertyChanged;
 
     public Dictionary<string, ICommand> Commands { get; } = [];
 

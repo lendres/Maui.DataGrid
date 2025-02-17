@@ -1,10 +1,12 @@
 namespace Maui.DataGrid.Sample;
 
-using CommunityToolkit.Maui.Views;
 using Maui.DataGrid.Sample.ViewModels;
 
+/// <summary>
+/// Codebehind for the MainPage.
+/// </summary>
 [XamlCompilation(XamlCompilationOptions.Compile)]
-public partial class MainPage
+internal partial class MainPage
 {
     public MainPage()
     {
@@ -12,14 +14,7 @@ public partial class MainPage
 
         BindingContext = new MainViewModel
         {
-            Columns = _dataGrid1.Columns
+            Columns = _dataGrid1.Columns,
         };
-    }
-
-    private async void OnSettingsClicked(object sender, EventArgs e)
-    {
-        var vm = (MainViewModel)BindingContext;
-        var settingsPopup = new SettingsPopup(vm);
-        _ = await Shell.Current.ShowPopupAsync(settingsPopup);
     }
 }

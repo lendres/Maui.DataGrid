@@ -12,10 +12,11 @@ internal static class TestExtensions
         {
             return await Application.Current.Dispatcher.DispatchAsync(() => bindableObject.GetValue(property));
         }
+
         return bindableObject.GetValue(property);
     }
 
-    public static async void CheckPropertyBindingWorks<T>(this BindableObject bindableObject, BindableProperty property, T testValue, T updatedValue)
+    public static async void CheckPropertyBindingWorks<T>(this BindableObject bindableObject, BindableProperty property, T testValue, T? updatedValue)
         where T : notnull
     {
         Assert.Equal(property.DefaultValue, await bindableObject.GetValueSafe(property));
@@ -57,9 +58,10 @@ internal static class TestExtensions
     {
         var style = new Style(element.GetType())
         {
-            Setters ={
-                new Setter() {Property = property,  Value = value }
-            }
+            Setters =
+            {
+                new Setter() { Property = property, Value = value },
+            },
         };
 
         element.DispatchIfRequired(() =>

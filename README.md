@@ -25,7 +25,7 @@ DataGrid library for .NET **MAUI** applications.
     <dg:DataGrid.Columns>
         <dg:DataGridColumn Title="Logo" PropertyName="Logo" SortingEnabled="False">
             <dg:DataGridColumn.CellTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="x:String">
                     <Image Source="{Binding}" HorizontalOptions="Center" VerticalOptions="Center"
                            Aspect="AspectFit" HeightRequest="60" />
                 </DataTemplate>
@@ -45,7 +45,7 @@ DataGrid library for .NET **MAUI** applications.
         <dg:DataGridColumn Title="Win %" PropertyName="Percentage" Width="0.75*" StringFormat="{}{0:0.00}" />
         <dg:DataGridColumn Title="Streak" PropertyName="Streak" Width="0.75*">
             <dg:DataGridColumn.CellTemplate>
-                <DataTemplate>
+                <DataTemplate x:DataType="m:Streak">
                     <ContentView HorizontalOptions="Fill" VerticalOptions="Fill"
                                  BackgroundColor="{Binding Converter={StaticResource StreakToColorConverter}}">
                         <Label Text="{Binding}" HorizontalOptions="Center" VerticalOptions="Center"
@@ -64,11 +64,27 @@ DataGrid library for .NET **MAUI** applications.
 </dg:DataGrid>
 ```
 
-## Screenshots
-----------
+## Tip
 
-![Screenshots](https://raw.githubusercontent.com/akgulebubekir/Maui.DataGrid/master/Screenshots/windows_landscape.PNG)
+If you are experiencing any issues on iOS, you can try adding the following to MauiProgram.cs
+
+```csharp
+#if IOS || MACCATALYST
+builder.ConfigureMauiHandlers(handlers =>
+{
+    handlers.AddHandler<Microsoft.Maui.Controls.CollectionView, Microsoft.Maui.Controls.Handlers.Items2.CollectionViewHandler2>();
+});
+#endif
+```
+
+## Screenshots
+
+![Screenshot 2025-01-10 144417](https://github.com/user-attachments/assets/0f8b3bb1-a4e9-4620-bef2-c6821150fe12)
 
 ## Repository Activity
 
 ![Alt](https://repobeats.axiom.co/api/embed/850b3036e03f7eff1bb74b4744e42aa3901a8ee7.svg "Repobeats analytics")
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=akgulebubekir/Maui.DataGrid&type=Date)](https://star-history.com/#akgulebubekir/Maui.DataGrid&Date)

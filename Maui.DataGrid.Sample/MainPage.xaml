@@ -1,35 +1,33 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
-    xmlns:dg="clr-namespace:Maui.DataGrid;assembly=Maui.DataGrid"
-    xmlns:m="clr-namespace:Maui.DataGrid.Sample.Models"
-    xmlns:vm="clr-namespace:Maui.DataGrid.Sample.ViewModels"
-    xmlns:conv="clr-namespace:Maui.DataGrid.Sample.Converters"
-    x:DataType="vm:MainViewModel"
-    x:Name="self"
-    x:Class="Maui.DataGrid.Sample.MainPage">
-    <Grid RowDefinitions="Auto,*" BackgroundColor="White">
+             xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
+             xmlns:dg="clr-namespace:Maui.DataGrid;assembly=Maui.DataGrid"
+             xmlns:m="clr-namespace:Maui.DataGrid.Sample.Models"
+             xmlns:vm="clr-namespace:Maui.DataGrid.Sample.ViewModels"
+             xmlns:conv="clr-namespace:Maui.DataGrid.Sample.Converters"
+             x:DataType="vm:MainViewModel"
+             x:Name="self" x:ClassModifier="internal"
+             x:Class="Maui.DataGrid.Sample.MainPage">
+    <Grid RowDefinitions="Auto,*">
 
-        <Grid BackgroundColor="Black">
-            <HorizontalStackLayout Spacing="20" HorizontalOptions="Center">
-                <Button Text="Settings" WidthRequest="100" Clicked="OnSettingsClicked" />
-                <Button Text="Delete" WidthRequest="100" Command="{Binding Commands[Delete]}" />
-            </HorizontalStackLayout>
-        </Grid>
+        <HorizontalStackLayout HorizontalOptions="Center">
+            <Button Text="Settings" WidthRequest="100" Command="{Binding Commands[Settings]}" />
+            <Button Text="Remove Team" WidthRequest="140" Command="{Binding Commands[RemoveTeam]}" />
+        </HorizontalStackLayout>
 
-        <dg:DataGrid Grid.Row="1" ItemsSource="{Binding Teams}" SelectionMode="{Binding SelectionMode}"
-            SelectedItem="{Binding SelectedTeam}" RowToEdit="{Binding TeamToEdit}" RefreshingEnabled="{Binding RefreshingEnabled}"
-            BorderColor="{StaticResource GridBorderColor}" BorderThickness="{Binding BorderThickness}"
-            HeaderBackground="{StaticResource GridHeaderBgColor}" HeaderBordersVisible="{Binding HeaderBordersVisible}"
-            BackgroundColor="{StaticResource GridBgColor}" ActiveRowColor="{StaticResource ActiveRowColor}"
-            FooterBackground="{StaticResource GridFooterBgColor}"
-            PaginationEnabled="{Binding PaginationEnabled}" PageSize="{Binding PageSize}"
-            PullToRefreshCommand="{Binding Commands[Refresh]}" IsRefreshing="{Binding IsRefreshing}"
-            RowHeight="70" HeaderHeight="50" x:Name="_dataGrid1"
-            RowTappedCommand="{Binding Commands[Tapped]}">
+        <dg:DataGrid Grid.Row="1" ItemsSource="{Binding Teams}" SelectionMode="{Binding SelectionMode}" FilteringEnabled="{Binding FilteringEnabled}"
+                     SelectedItem="{Binding SelectedTeam}" RowToEdit="{Binding TeamToEdit}" RefreshingEnabled="{Binding RefreshingEnabled}"
+                     BorderColor="{StaticResource GridBorderColor}" BorderThickness="{Binding BorderThickness}"
+                     HeaderBackground="{StaticResource GridHeaderBgColor}" HeaderBordersVisible="{Binding HeaderBordersVisible}"
+                     BackgroundColor="{StaticResource GridBgColor}" ActiveRowColor="{StaticResource ActiveRowColor}"
+                     FooterBackground="{StaticResource GridFooterBgColor}" FooterTextColor="{StaticResource GridFooterTextColor}" SortedColumnIndex="1"
+                     PaginationEnabled="{Binding PaginationEnabled}" PageSize="{Binding PageSize}" PageText="{Binding PaginationText}" PerPageText="{Binding PerPageText}"
+                     PullToRefreshCommand="{Binding Commands[Refresh]}" IsRefreshing="{Binding IsRefreshing}"
+                     RowHeight="70" HeaderHeight="75" x:Name="_dataGrid1"
+                     RowTappedCommand="{Binding Commands[Tapped]}">
             <dg:DataGrid.Columns>
-                <dg:DataGridColumn Title="Logo" PropertyName="Logo" SortingEnabled="False">
+                <dg:DataGridColumn Title="Logo" PropertyName="Logo" SortingEnabled="False" FilteringEnabled="False">
                     <dg:DataGridColumn.CellTemplate>
                         <DataTemplate x:DataType="x:String">
                             <Image Source="{Binding}" HorizontalOptions="Center" VerticalOptions="Center"
@@ -60,15 +58,15 @@
                         </DataTemplate>
                     </dg:DataGridColumn.CellTemplate>
                 </dg:DataGridColumn>
-                <dg:DataGridColumn PropertyName="." Width="0.75*">
+                <dg:DataGridColumn PropertyName="." Width="0.75*" FilteringEnabled="False">
                     <dg:DataGridColumn.CellTemplate>
                         <DataTemplate x:DataType="m:Team">
-                            <Button Text="Edit" BackgroundColor="LightSkyBlue" Command="{Binding BindingContext.Commands[Edit], Source={Reference self}}" CommandParameter="{Binding .}" />
+                            <Button Text="Edit" BackgroundColor="LightSkyBlue" Command="{Binding Commands[Edit], Source={RelativeSource Mode=FindAncestorBindingContext, AncestorType={x:Type vm:MainViewModel}}, x:DataType={x:Type vm:MainViewModel}}" CommandParameter="{Binding .}" />
                         </DataTemplate>
                     </dg:DataGridColumn.CellTemplate>
                     <dg:DataGridColumn.EditCellTemplate>
                         <DataTemplate x:DataType="m:Team">
-                            <Button Text="Done" BackgroundColor="MediumSeaGreen" Command="{Binding BindingContext.Commands[CompleteEdit], Source={Reference self}}" CommandParameter="{Binding .}" />
+                            <Button Text="Done" BackgroundColor="MediumSeaGreen" Command="{Binding Commands[CompleteEdit], Source={RelativeSource Mode=FindAncestorBindingContext, AncestorType={x:Type vm:MainViewModel}}, x:DataType={x:Type vm:MainViewModel}}" CommandParameter="{Binding .}" />
                         </DataTemplate>
                     </dg:DataGridColumn.EditCellTemplate>
                 </dg:DataGridColumn>

@@ -3,36 +3,43 @@ namespace Maui.DataGrid.Sample.ViewModels;
 using System.Collections.Immutable;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
-using Models;
-using Utils;
+using CommunityToolkit.Maui.Core.Extensions;
+using CommunityToolkit.Maui.Views;
+using Maui.DataGrid.Sample.Models;
+using Maui.DataGrid.Sample.Utils;
 
-public class MainViewModel : ViewModelBase
+internal sealed class MainViewModel : ViewModelBase
 {
     public MainViewModel()
     {
-        Teams = DummyDataProvider.GetTeams();
+        // To play with more data use DummyDataProvider.GetTeams(100)
+        Teams = DummyDataProvider.GetTeams().ToObservableCollection();
         TeamColumnVisible = true;
         WonColumnVisible = true;
         HeaderBordersVisible = true;
+        FilteringEnabled = true;
         PaginationEnabled = true;
         RefreshingEnabled = true;
         TeamColumnWidth = 70;
         SelectionMode = SelectionMode.Single;
         PageSize = 6;
-        BorderThicknessNumeric = 1;
+        BorderThicknessNumeric = 2;
+        PaginationText = "Page: ";
+        PerPageText = "# per page: ";
 
         Commands.Add("CompleteEdit", new Command(CmdCompleteEdit));
         Commands.Add("Edit", new Command<Team>(CmdEdit));
         Commands.Add("Refresh", new Command(CmdRefresh));
         Commands.Add("Tapped", new Command(CmdTapped));
-        Commands.Add("Delete", new Command(CmdDelete));
+        Commands.Add("RemoveTeam", new Command(CmdRemoveTeam));
+        Commands.Add("Settings", new Command(CmdSettings));
 
         var picker = new Picker();
     }
 
     public static ImmutableList<SelectionMode> SelectionModes => Enum.GetValues<SelectionMode>().Cast<SelectionMode>().ToImmutableList();
 
-    public required ObservableCollection<DataGridColumn> Columns { get; set; }
+    public required ObservableCollection<DataGridColumn> Columns { get; init; }
 
     public Team? TeamToEdit
     {
@@ -43,7 +50,7 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<Team>? Teams
     {
         get => GetValue<ObservableCollection<Team>>();
-        set => SetValue(value);
+        init => SetValue(value);
     }
 
     public bool HeaderBordersVisible
@@ -90,9 +97,27 @@ public class MainViewModel : ViewModelBase
         set => SetValue(value);
     }
 
+    public bool FilteringEnabled
+    {
+        get => GetValue<bool>();
+        set => SetValue(value);
+    }
+
     public bool PaginationEnabled
     {
         get => GetValue<bool>();
+        set => SetValue(value);
+    }
+
+    public string PaginationText
+    {
+        get => GetValue<string>() ?? "Page:";
+        set => SetValue(value);
+    }
+
+    public string PerPageText
+    {
+        get => GetValue<string>() ?? "# per page:";
         set => SetValue(value);
     }
 
@@ -135,25 +160,32 @@ public class MainViewModel : ViewModelBase
     private async void CmdRefresh()
     {
         IsRefreshing = true;
+
         // wait 3 secs for demo
         await Task.Delay(3000);
+
         IsRefreshing = false;
     }
 
-    private void CmdTapped(object item)
-
-    {
-        if (item is Team team)
-        {
-            Debug.WriteLine($"Item Tapped: {team.Name}");
-        }
-    }
-
-    private void CmdDelete()
+    private void CmdRemoveTeam()
     {
         if (Teams?.Count > 0)
         {
             Teams?.RemoveAt(0);
+        }
+    }
+
+    private async void CmdSettings()
+    {
+        var settingsPopup = new SettingsPopup(this);
+        _ = await Shell.Current.ShowPopupAsync(settingsPopup);
+    }
+
+    private void CmdTapped(object item)
+    {
+        if (item is Team team)
+        {
+            Debug.WriteLine($"Item Tapped: {team.Name}");
         }
     }
 }

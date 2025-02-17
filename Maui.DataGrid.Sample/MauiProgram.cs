@@ -6,7 +6,7 @@ using Xunit.Runners.Maui;
 using CommunityToolkit.Maui;
 #endif
 
-public static class MauiProgram
+internal static class MauiProgram
 {
     public static MauiApp CreateMauiApp()
     {
@@ -15,9 +15,9 @@ public static class MauiProgram
         builder.ConfigureTests(new TestOptions
         {
             Assemblies =
-        {
-            typeof(MauiProgram).Assembly
-        }
+            {
+                typeof(MauiProgram).Assembly,
+            },
         })
 .UseVisualRunner();
 #else

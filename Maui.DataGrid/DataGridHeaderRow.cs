@@ -1,19 +1,26 @@
 namespace Maui.DataGrid;
 
-using Extensions;
+using System.Diagnostics.CodeAnalysis;
+using Maui.DataGrid.Extensions;
 using Microsoft.Maui.Controls;
 
+[SuppressMessage("Microsoft.Performance", "CA1812:AvoidUninstantiatedInternalClasses", Justification = "Instantiated via XAML")]
 internal sealed class DataGridHeaderRow : Grid
 {
+    #region Bindable Properties
+
+    public static readonly BindableProperty DataGridProperty =
+        BindablePropertyExtensions.Create<DataGridHeaderRow, DataGrid>(null, BindingMode.OneTime);
+
+    #endregion Bindable Properties
+
     #region Fields
 
-    private readonly ColumnDefinitionCollection _headerColumnDefinitions =
+    private readonly RowDefinitionCollection _headerRowDefinitions =
                 [
-                    new() { Width = new(1, GridUnitType.Star) },
-                    new() { Width = new(1, GridUnitType.Auto) }
+                    new() { Height = new(1, GridUnitType.Star) },
+                    new() { Height = new(1, GridUnitType.Auto) },
                 ];
-
-    private readonly Thickness _headerCellPadding = new(0, 0, 4, 0);
 
     private readonly Command<DataGridColumn> _sortCommand = new(OnSort, CanSort);
 
@@ -28,13 +35,6 @@ internal sealed class DataGridHeaderRow : Grid
     }
 
     #endregion Properties
-
-    #region Bindable Properties
-
-    public static readonly BindableProperty DataGridProperty =
-        BindablePropertyExtensions.Create<DataGridHeaderRow, DataGrid>(null, BindingMode.OneTime);
-
-    #endregion Bindable Properties
 
     #region Methods
 
@@ -70,14 +70,14 @@ internal sealed class DataGridHeaderRow : Grid
             // Add or update columns as needed
             ColumnDefinitions.AddOrUpdate(col.ColumnDefinition, i);
 
+            col.HeaderCell = CreateHeaderCell(col);
+
+            col.HeaderCell.UpdateBindings(DataGrid);
+
             if (!col.IsVisible)
             {
                 continue;
             }
-
-            col.HeaderCell ??= CreateHeaderCell(col);
-
-            col.HeaderCell.UpdateBindings(DataGrid, DataGrid.HeaderBordersVisible);
 
             if (Children.TryGetItem(i, out var existingChild))
             {
@@ -132,17 +132,13 @@ internal sealed class DataGridHeaderRow : Grid
             {
                 column.VisibilityChanged += OnVisibilityChanged;
             }
+
+#if NET9_0_OR_GREATER
+            SetBinding(BackgroundColorProperty, BindingBase.Create<DataGrid, Color>(static x => x.BorderColor, source: DataGrid));
+#else
+            SetBinding(BackgroundColorProperty, new Binding(nameof(DataGrid.BorderColor), source: DataGrid));
+#endif
         }
-    }
-
-    private void OnColumnsChanged(object? sender, EventArgs e)
-    {
-        InitializeHeaderRow();
-    }
-
-    private void OnVisibilityChanged(object? sender, EventArgs e)
-    {
-        InitializeHeaderRow();
     }
 
     private static void OnSort(DataGridColumn column)
@@ -169,43 +165,81 @@ internal sealed class DataGridHeaderRow : Grid
         return column.SortingEnabled && column.DataGrid.Columns.Contains(column);
     }
 
+    private void OnColumnsChanged(object? sender, EventArgs e)
+    {
+        InitializeHeaderRow();
+    }
+
+    private void OnVisibilityChanged(object? sender, EventArgs e)
+    {
+        InitializeHeaderRow();
+    }
+
     private DataGridCell CreateHeaderCell(DataGridColumn column)
     {
-        Grid cellContent;
-
-        column.HeaderLabel.Style = column.HeaderLabelStyle ?? DataGrid.HeaderLabelStyle ?? DataGrid.DefaultHeaderStyle;
-
-        if (!DataGrid.SortingEnabled || !column.SortingEnabled || !column.IsSortable())
+        if (column.HeaderCell != null)
         {
-            cellContent = [column.HeaderLabel];
-            cellContent.Padding = _headerCellPadding;
+            SetFilterRow(column);
+
+            return column.HeaderCell;
+        }
+
+        var cellContent = new Grid
+        {
+            RowDefinitions = _headerRowDefinitions,
+        };
+
+        column.HeaderLabel.Style = column.HeaderLabelStyle ?? DataGrid.HeaderLabelStyle ?? DataGrid.DefaultHeaderLabelStyle;
+        column.FilterTextbox.Style = column.HeaderFilterStyle ?? DataGrid.HeaderFilterStyle ?? DataGrid.DefaultHeaderFilterStyle;
+
+        column.HeaderLabelContainer.Children.Add(column.HeaderLabel);
+
+        /* Configure the sorting icon */
+
+        var sortIconSize = DataGrid.HeaderHeight * 0.3;
+        column.SortingIconContainer.HeightRequest = sortIconSize;
+        column.SortingIconContainer.WidthRequest = sortIconSize;
+        column.SortingIcon.Style = DataGrid.SortIconStyle ?? DataGrid.DefaultSortIconStyle;
+
+        column.HeaderLabelContainer.Children.Add(column.SortingIconContainer);
+        column.HeaderLabelContainer.SetColumn(column.SortingIconContainer, 1);
+
+        column.HeaderLabelContainer.GestureRecognizers.Add(new TapGestureRecognizer
+        {
+            Command = _sortCommand,
+            CommandParameter = column,
+        });
+
+        cellContent.Children.Add(column.HeaderLabelContainer);
+
+        SetFilterRow(column);
+
+        cellContent.Children.Add(column.FilterTextboxContainer);
+        cellContent.SetRow(column.FilterTextboxContainer, 1);
+        cellContent.SetColumnSpan(column.FilterTextboxContainer, 2);
+
+        return new DataGridCell(cellContent, DataGrid.HeaderBackground, column, false);
+    }
+
+    private void SetFilterRow(DataGridColumn column)
+    {
+        if (DataGrid.FilteringEnabled && column.FilteringEnabled)
+        {
+            column.FilterTextboxContainer.Content = column.FilterTextbox;
+        }
+        else if (DataGrid.FilteringEnabled && DataGrid.Columns.Any(c => c.FilteringEnabled))
+        {
+            // Add placeholder
+            column.FilterTextboxContainer.Content = new Entry
+            {
+                Style = column.FilterTextbox.Style,
+                IsEnabled = false,
+            };
         }
         else
         {
-            var sortIconSize = DataGrid.HeaderHeight * 0.3;
-            column.SortingIconContainer.HeightRequest = sortIconSize;
-            column.SortingIconContainer.WidthRequest = sortIconSize;
-            column.SortingIcon.Style = DataGrid.SortIconStyle ?? DataGrid.DefaultSortIconStyle;
-
-            cellContent = new Grid
-            {
-                Padding = _headerCellPadding,
-                ColumnDefinitions = _headerColumnDefinitions,
-                Children = { column.HeaderLabel, column.SortingIconContainer },
-                GestureRecognizers =
-                {
-                    new TapGestureRecognizer
-                    {
-                        Command = _sortCommand,
-                        CommandParameter = column
-                    }
-                }
-            };
-
-            cellContent.SetColumn(column.SortingIconContainer, 1);
+            column.FilterTextboxContainer.Content = null;
         }
-
-        return new DataGridCell(cellContent, DataGrid.HeaderBackground, column, false);
     }
 
     #endregion Methods

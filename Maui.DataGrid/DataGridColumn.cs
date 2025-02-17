@@ -2,6 +2,7 @@ namespace Maui.DataGrid;
 
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using Maui.DataGrid.Extensions;
 using Microsoft.Maui.Controls.Shapes;
 
@@ -10,61 +11,14 @@ using Microsoft.Maui.Controls.Shapes;
 /// </summary>
 public sealed class DataGridColumn : BindableObject, IDefinition
 {
-    #region Fields
-
-    private bool? _isSortable;
-    private ColumnDefinition? _columnDefinition;
-    private TextAlignment? _verticalTextAlignment;
-    private TextAlignment? _horizontalTextAlignment;
-    private readonly ColumnDefinition _invisibleColumnDefinition = new(0);
-    private readonly WeakEventManager _sizeChangedEventManager = new();
-    private readonly WeakEventManager _visibilityChangedEventManager = new();
-
-    #endregion Fields
-
-    /// <summary>
-    /// Initializes a new instance of the <see cref="DataGridColumn"/> class.
-    /// </summary>
-    public DataGridColumn()
-    {
-        SortingIconContainer = new ContentView
-        {
-            IsVisible = false,
-            Content = SortingIcon,
-            HorizontalOptions = LayoutOptions.Center,
-            VerticalOptions = LayoutOptions.Center,
-        };
-    }
-
-    #region Events
-
-    /// <summary>
-    /// Occurs when the size of the column changes.
-    /// </summary>
-    public event EventHandler SizeChanged
-    {
-        add => _sizeChangedEventManager.AddEventHandler(value);
-        remove => _sizeChangedEventManager.RemoveEventHandler(value);
-    }
-
-    /// <summary>
-    /// Occurs when the visibility of the column changes.
-    /// </summary>
-    public event EventHandler VisibilityChanged
-    {
-        add => _visibilityChangedEventManager.AddEventHandler(value);
-        remove => _visibilityChangedEventManager.RemoveEventHandler(value);
-    }
-
-    #endregion Events
-
     #region Bindable Properties
 
     /// <summary>
     /// Gets or sets the width of the column.
     /// </summary>
     public static readonly BindableProperty WidthProperty =
-        BindablePropertyExtensions.Create<DataGridColumn, GridLength>(GridLength.Star,
+        BindablePropertyExtensions.Create<DataGridColumn, GridLength>(
+            defaultValue: GridLength.Star,
             propertyChanged: (b, o, n) =>
             {
                 if (!o.Equals(n) && b is DataGridColumn self)
@@ -86,8 +40,23 @@ public sealed class DataGridColumn : BindableObject, IDefinition
     /// Gets or sets the title of the column.
     /// </summary>
     public static readonly BindableProperty TitleProperty =
-        BindablePropertyExtensions.Create<DataGridColumn, string>(string.Empty,
+        BindablePropertyExtensions.Create<DataGridColumn, string>(
+            defaultValue: string.Empty,
             propertyChanged: (b, _, n) => ((DataGridColumn)b).HeaderLabel.Text = n);
+
+    /// <summary>
+    /// Gets or sets the filter text of the column.
+    /// </summary>
+    public static readonly BindableProperty FilterTextProperty =
+        BindablePropertyExtensions.Create<DataGridColumn, string>(
+            propertyChanged: (b, _, _) =>
+            {
+                if (b is DataGridColumn self && self.DataGrid is not null)
+                {
+                    self.DataGrid.PageNumber = 1;
+                    self.DataGrid.SortFilterAndPaginate();
+                }
+            });
 
     /// <summary>
     /// Gets or sets the formatted title of the column.
@@ -106,8 +75,9 @@ public sealed class DataGridColumn : BindableObject, IDefinition
     /// Gets or sets a value indicating whether the column is visible.
     /// </summary>
     public static readonly BindableProperty IsVisibleProperty =
-        BindablePropertyExtensions.Create<DataGridColumn, bool>(true,
-            propertyChanged: (b, o, n) =>
+        BindablePropertyExtensions.Create<DataGridColumn, bool>(
+            defaultValue: true,
+            propertyChanged: (b, _, _) =>
             {
                 if (b is DataGridColumn column)
                 {
@@ -162,28 +132,315 @@ public sealed class DataGridColumn : BindableObject, IDefinition
     /// Gets or sets a value indicating whether sorting is enabled for the column.
     /// </summary>
     public static readonly BindableProperty SortingEnabledProperty =
-        BindablePropertyExtensions.Create<DataGridColumn, bool>(true);
+        BindablePropertyExtensions.Create<DataGridColumn, bool>(
+            defaultValue: true,
+            propertyChanged: (b, _, _) =>
+            {
+                if (b is DataGridColumn self)
+                {
+                    self.HeaderCell = null;
+                    self.DataGrid?.Initialize();
+                }
+            });
+
+    /// <summary>
+    /// Gets or sets a value indicating whether filtering is enabled for the column.
+    /// </summary>
+    public static readonly BindableProperty FilteringEnabledProperty =
+        BindablePropertyExtensions.Create<DataGridColumn, bool>(
+            defaultValue: true,
+            propertyChanged: (b, _, n) =>
+            {
+                if (b is DataGridColumn self)
+                {
+                    self.FilterTextbox.IsVisible = n;
+                    self.DataGrid?.Initialize();
+                }
+            });
 
     /// <summary>
     /// Gets or sets the style for the header label of the column.
     /// </summary>
     public static readonly BindableProperty HeaderLabelStyleProperty =
         BindablePropertyExtensions.Create<DataGridColumn, Style>(
-            propertyChanged: (b, o, n) =>
+            propertyChanged: (b, _, n) =>
             {
                 if (b is DataGridColumn self && self.HeaderLabel != null)
                 {
-                    self.HeaderLabel.Style = n;
+                    if (n is null)
+                    {
+                        if (self.DataGrid is not null)
+                        {
+                            self.HeaderLabel.Style = self.DataGrid.DefaultHeaderLabelStyle;
+                        }
+                    }
+                    else
+                    {
+                        self.HeaderLabel.Style = n;
+                    }
+                }
+            });
+
+    /// <summary>
+    /// Gets or sets the style for the header filter of the column.
+    /// </summary>
+    public static readonly BindableProperty HeaderFilterStyleProperty =
+        BindablePropertyExtensions.Create<DataGridColumn, Style>(
+            propertyChanged: (b, _, n) =>
+            {
+                if (b is DataGridColumn self)
+                {
+                    if (n is null)
+                    {
+                        if (self.DataGrid is not null)
+                        {
+                            self.FilterTextbox.Style = self.DataGrid.DefaultHeaderFilterStyle;
+                        }
+                    }
+                    else
+                    {
+                        self.FilterTextbox.Style = n;
+                    }
                 }
             });
 
     #endregion Bindable Properties
 
+    #region Fields
+
+    private readonly ColumnDefinition _invisibleColumnDefinition = new(0);
+    private readonly WeakEventManager _sizeChangedEventManager = new();
+    private readonly WeakEventManager _visibilityChangedEventManager = new();
+
+    private bool? _isSortable;
+    private ColumnDefinition? _columnDefinition;
+    private TextAlignment? _verticalTextAlignment;
+    private TextAlignment? _horizontalTextAlignment;
+
+    #endregion Fields
+
+    /// <summary>
+    /// Initializes a new instance of the <see cref="DataGridColumn"/> class.
+    /// </summary>
+    public DataGridColumn()
+    {
+        SortingIconContainer = new ContentView
+        {
+            Content = SortingIcon,
+            HorizontalOptions = LayoutOptions.Center,
+            VerticalOptions = LayoutOptions.Center,
+            IsVisible = false,
+        };
+
+#if NET9_0_OR_GREATER
+        FilterTextbox.SetBinding(Entry.TextProperty, BindingBase.Create<DataGridColumn, string>(static x => x.FilterText, BindingMode.TwoWay, source: this));
+#else
+        FilterTextbox.SetBinding(Entry.TextProperty, new Binding(nameof(FilterText), BindingMode.TwoWay, source: this));
+#endif
+    }
+
+    #region Events
+
+    /// <summary>
+    /// Occurs when the size of the column changes.
+    /// </summary>
+    public event EventHandler SizeChanged
+    {
+        add => _sizeChangedEventManager.AddEventHandler(value);
+        remove => _sizeChangedEventManager.RemoveEventHandler(value);
+    }
+
+    /// <summary>
+    /// Occurs when the visibility of the column changes.
+    /// </summary>
+    public event EventHandler VisibilityChanged
+    {
+        add => _visibilityChangedEventManager.AddEventHandler(value);
+        remove => _visibilityChangedEventManager.RemoveEventHandler(value);
+    }
+
+    #endregion Events
+
     #region Properties
+
+    /// <summary>
+    /// Gets or sets width of the column.
+    /// Like Grid, you can use <see cref="GridUnitType.Absolute"/>, <see cref="GridUnitType.Star"/>, or <see cref="GridUnitType.Auto"/>.
+    /// Be careful when using Auto. Columns may become misaligned.
+    /// </summary>
+    [TypeConverter(typeof(GridLengthTypeConverter))]
+    public GridLength Width
+    {
+        get => (GridLength)GetValue(WidthProperty);
+        set => SetValue(WidthProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets column title.
+    /// </summary>
+    public string Title
+    {
+        get => (string)GetValue(TitleProperty);
+        set => SetValue(TitleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets formatted title for column.
+    /// <example>
+    /// <code>
+    /// <![CDATA[
+    /// <DataGridColumn.FormattedTitle>
+    ///     <FormattedString>
+    ///       <Span Text="Home" TextColor="Black" FontSize="13" FontAttributes="Bold" />
+    ///       <Span Text=" (won-lost)" TextColor="#333333" FontSize="11" />
+    ///     </FormattedString>
+    /// </DataGridColumn.FormattedTitle>
+    /// ]]>
+    /// </code>
+    /// </example>
+    /// </summary>
+    public FormattedString FormattedTitle
+    {
+        get => (string)GetValue(FormattedTitleProperty);
+        set => SetValue(FormattedTitleProperty, value);
+    }
+
+    public string FilterText
+    {
+        get => (string)GetValue(FilterTextProperty);
+        set => SetValue(FilterTextProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets property name to bind in the object.
+    /// </summary>
+    public string PropertyName
+    {
+        get => (string)GetValue(PropertyNameProperty);
+        set => SetValue(PropertyNameProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether this column visible.
+    /// </summary>
+    public bool IsVisible
+    {
+        get => (bool)GetValue(IsVisibleProperty);
+        set => SetValue(IsVisibleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets string format for the cell.
+    /// </summary>
+    public string? StringFormat
+    {
+        get => (string?)GetValue(StringFormatProperty);
+        set => SetValue(StringFormatProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets cell template.
+    /// Default value is <see cref="Label"/> with binding <see cref="PropertyName"/>.
+    /// </summary>
+    public DataTemplate? CellTemplate
+    {
+        get => (DataTemplate?)GetValue(CellTemplateProperty);
+        set => SetValue(CellTemplateProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets edit cell template.
+    /// Default value is <see cref="Entry"/> with binding <see cref="PropertyName"/>.
+    /// </summary>
+    public DataTemplate? EditCellTemplate
+    {
+        get => (DataTemplate?)GetValue(EditCellTemplateProperty);
+        set => SetValue(EditCellTemplateProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets <see cref="LineBreakMode"/> for the text.
+    /// Default value is <see cref="LineBreakMode.WordWrap"/>.
+    /// </summary>
+    public LineBreakMode LineBreakMode
+    {
+        get => (LineBreakMode)GetValue(LineBreakModeProperty);
+        set => SetValue(LineBreakModeProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets horizontal alignment of the cell content.
+    /// </summary>
+    public LayoutOptions HorizontalContentAlignment
+    {
+        get => (LayoutOptions)GetValue(HorizontalContentAlignmentProperty);
+        set => SetValue(HorizontalContentAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets vertical alignment of the cell content.
+    /// </summary>
+    public LayoutOptions VerticalContentAlignment
+    {
+        get => (LayoutOptions)GetValue(VerticalContentAlignmentProperty);
+        set => SetValue(VerticalContentAlignmentProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the column is sortable.
+    /// Default is true. But the DataGrid must also have sorting enabled.
+    /// Sortable columns must implement <see cref="IComparable"/>.
+    /// </summary>
+    public bool SortingEnabled
+    {
+        get => (bool)GetValue(SortingEnabledProperty);
+        set => SetValue(SortingEnabledProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets a value indicating whether the column can be filtered.
+    /// Default is true. But the DataGrid must also have filtering enabled.
+    /// </summary>
+    public bool FilteringEnabled
+    {
+        get => (bool)GetValue(FilteringEnabledProperty);
+        set => SetValue(FilteringEnabledProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets label style of the header. <see cref="Style.TargetType"/> must be Label.
+    /// </summary>
+    public Style HeaderLabelStyle
+    {
+        get => (Style)GetValue(HeaderLabelStyleProperty);
+        set => SetValue(HeaderLabelStyleProperty, value);
+    }
+
+    /// <summary>
+    /// Gets or sets label style of the header. <see cref="Style.TargetType"/> must be Label.
+    /// </summary>
+    public Style HeaderFilterStyle
+    {
+        get => (Style)GetValue(HeaderFilterStyleProperty);
+        set => SetValue(HeaderFilterStyleProperty, value);
+    }
 
     internal Polygon SortingIcon { get; } = new();
 
+    internal Entry FilterTextbox { get; } = new() { Placeholder = "Filter" };
+
+    internal ContentView FilterTextboxContainer { get; } = new();
+
     internal Label HeaderLabel { get; } = new();
+
+    internal Grid HeaderLabelContainer { get; } = new()
+    {
+        ColumnDefinitions =
+        [
+            new() { Width = new(1, GridUnitType.Star) },
+            new() { Width = new(1, GridUnitType.Auto) },
+        ],
+    };
 
     internal View SortingIconContainer { get; }
 
@@ -205,145 +462,15 @@ public sealed class DataGridColumn : BindableObject, IDefinition
 
     internal TextAlignment HorizontalTextAlignment => _horizontalTextAlignment ??= HorizontalContentAlignment.ToTextAlignment();
 
-    /// <summary>
-    /// Width of the column. Like Grid, you can use <see cref="GridUnitType.Absolute"/>, <see cref="GridUnitType.Star"/>, or <see cref="GridUnitType.Auto"/>.
-    /// </summary>
-    [TypeConverter(typeof(GridLengthTypeConverter))]
-    public GridLength Width
-    {
-        get => (GridLength)GetValue(WidthProperty);
-        set => SetValue(WidthProperty, value);
-    }
-
-    /// <summary>
-    /// Column title
-    /// </summary>
-    public string Title
-    {
-        get => (string)GetValue(TitleProperty);
-        set => SetValue(TitleProperty, value);
-    }
-
-    /// <summary>
-    /// Formatted title for column
-    /// <example>
-    /// <code>
-    /// <![CDATA[
-    /// <DataGridColumn.FormattedTitle>
-    ///     <FormattedString>
-    ///       <Span Text="Home" TextColor="Black" FontSize="13" FontAttributes="Bold" />
-    ///       <Span Text=" (won-lost)" TextColor="#333333" FontSize="11" />
-    ///     </FormattedString>
-    /// </DataGridColumn.FormattedTitle>
-    /// ]]>
-    /// </code>
-    /// </example>
-    /// </summary>
-    public FormattedString FormattedTitle
-    {
-        get => (string)GetValue(FormattedTitleProperty);
-        set => SetValue(FormattedTitleProperty, value);
-    }
-
-    /// <summary>
-    /// Property name to bind in the object
-    /// </summary>
-    public string PropertyName
-    {
-        get => (string)GetValue(PropertyNameProperty);
-        set => SetValue(PropertyNameProperty, value);
-    }
-
-    /// <summary>
-    /// Is this column visible?
-    /// </summary>
-    public bool IsVisible
-    {
-        get => (bool)GetValue(IsVisibleProperty);
-        set => SetValue(IsVisibleProperty, value);
-    }
-
-    /// <summary>
-    /// String format for the cell
-    /// </summary>
-    public string? StringFormat
-    {
-        get => (string?)GetValue(StringFormatProperty);
-        set => SetValue(StringFormatProperty, value);
-    }
-
-    /// <summary>
-    /// Cell template. Default value is <see cref="Label"/> with binding <see cref="PropertyName"/>
-    /// </summary>
-    public DataTemplate? CellTemplate
-    {
-        get => (DataTemplate?)GetValue(CellTemplateProperty);
-        set => SetValue(CellTemplateProperty, value);
-    }
-
-    /// <summary>
-    /// Edit cell template. Default value is <see cref="Entry"/> with binding <see cref="PropertyName"/>
-    /// </summary>
-    public DataTemplate? EditCellTemplate
-    {
-        get => (DataTemplate?)GetValue(EditCellTemplateProperty);
-        set => SetValue(EditCellTemplateProperty, value);
-    }
-
-    /// <summary>
-    /// LineBreakModeProperty for the text. WordWrap by default.
-    /// </summary>
-    public LineBreakMode LineBreakMode
-    {
-        get => (LineBreakMode)GetValue(LineBreakModeProperty);
-        set => SetValue(LineBreakModeProperty, value);
-    }
-
-    /// <summary>
-    /// Horizontal alignment of the cell content
-    /// </summary>
-    public LayoutOptions HorizontalContentAlignment
-    {
-        get => (LayoutOptions)GetValue(HorizontalContentAlignmentProperty);
-        set => SetValue(HorizontalContentAlignmentProperty, value);
-    }
-
-    /// <summary>
-    /// Vertical alignment of the cell content
-    /// </summary>
-    public LayoutOptions VerticalContentAlignment
-    {
-        get => (LayoutOptions)GetValue(VerticalContentAlignmentProperty);
-        set => SetValue(VerticalContentAlignmentProperty, value);
-    }
-
-    /// <summary>
-    /// Defines if the column is sortable. Default is true
-    /// Sortable columns must implement <see cref="IComparable"/>
-    /// </summary>
-    public bool SortingEnabled
-    {
-        get => (bool)GetValue(SortingEnabledProperty);
-        set => SetValue(SortingEnabledProperty, value);
-    }
-
-    /// <summary>
-    /// Label Style of the header. <see cref="Style.TargetType"/> must be Label.
-    /// </summary>
-    public Style HeaderLabelStyle
-    {
-        get => (Style)GetValue(HeaderLabelStyleProperty);
-        set => SetValue(HeaderLabelStyleProperty, value);
-    }
-
     #endregion Properties
 
     #region Methods
 
     /// <summary>
     /// Determines via reflection if the column's data type is sortable.
-    /// If you want to disable sorting for specific column please use <see cref="SortingEnabled"/> property
+    /// If you want to disable sorting for specific column please use <see cref="SortingEnabled"/> property.
     /// </summary>
+    /// <returns>Boolean value representing whether the column is sortable.</returns>
     public bool IsSortable()
     {
         if (_isSortable is not null)
@@ -363,6 +490,8 @@ public sealed class DataGridColumn : BindableObject, IDefinition
         return _isSortable ??= false;
     }
 
+    [UnconditionalSuppressMessage("Trimming", "IL2072", Justification = "Reflection is needed here.")]
+    [UnconditionalSuppressMessage("Trimming", "IL2062", Justification = "Reflection is needed here.")]
     internal void InitializeDataType()
     {
         if (DataType != null || string.IsNullOrEmpty(PropertyName))
